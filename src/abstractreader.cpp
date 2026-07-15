@@ -17,6 +17,7 @@
   along with serialplot.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <QtDebug>
 #include "abstractreader.h"
 
 AbstractReader::AbstractReader(QIODevice* device, QObject* parent) :
@@ -33,6 +34,7 @@ void AbstractReader::pause(bool enabled)
 
 void AbstractReader::enable(bool enabled)
 {
+    _enabled = enabled;
     if (enabled)
     {
         QObject::connect(_device, &QIODevice::readyRead,
@@ -42,6 +44,17 @@ void AbstractReader::enable(bool enabled)
     {
         QObject::disconnect(_device, 0, this, 0);
         disconnectSinks();
+    }
+}
+
+void AbstractReader::setDevice(QIODevice* device)
+{
+    QObject::disconnect(_device, &QIODevice::readyRead, this, &AbstractReader::onDataReady);
+    _device = device;
+    if (_enabled)
+    {
+        QObject::connect(_device, &QIODevice::readyRead,
+                         this, &AbstractReader::onDataReady);
     }
 }
 

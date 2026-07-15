@@ -37,9 +37,12 @@ AsciiReaderSettings::AsciiReaderSettings(QWidget *parent) :
 
     ui->spNumOfChannels->setMaximum(MAX_NUM_CHANNELS);
 
+    delimiterButtons.addButton(ui->rbAuto);
     delimiterButtons.addButton(ui->rbComma);
     delimiterButtons.addButton(ui->rbSpace);
     delimiterButtons.addButton(ui->rbTab);
+    delimiterButtons.addButton(ui->rbColon);
+    delimiterButtons.addButton(ui->rbSemicolon);
     delimiterButtons.addButton(ui->rbOtherDelimiter);
 
     filterButtons.addButton(ui->rbFilterDisabled, (int) FilterMode::disabled);
@@ -47,11 +50,17 @@ AsciiReaderSettings::AsciiReaderSettings(QWidget *parent) :
     filterButtons.addButton(ui->rbFilterExclude, (int) FilterMode::exclude);
 
     // delimiter buttons signals
+    connect(ui->rbAuto, &QAbstractButton::toggled,
+            this, &AsciiReaderSettings::delimiterToggled);
     connect(ui->rbComma, &QAbstractButton::toggled,
             this, &AsciiReaderSettings::delimiterToggled);
     connect(ui->rbSpace, &QAbstractButton::toggled,
             this, &AsciiReaderSettings::delimiterToggled);
     connect(ui->rbTab, &QAbstractButton::toggled,
+            this, &AsciiReaderSettings::delimiterToggled);
+    connect(ui->rbColon, &QAbstractButton::toggled,
+            this, &AsciiReaderSettings::delimiterToggled);
+    connect(ui->rbSemicolon, &QAbstractButton::toggled,
             this, &AsciiReaderSettings::delimiterToggled);
     connect(ui->rbOtherDelimiter, &QAbstractButton::toggled,
             this, &AsciiReaderSettings::delimiterToggled);
@@ -104,7 +113,11 @@ AsciiReaderSettings::FilterMode AsciiReaderSettings::filterMode() const
 
 QString AsciiReaderSettings::delimiter() const
 {
-    if (ui->rbComma->isChecked())
+    if (ui->rbAuto->isChecked())
+    {
+        return QString(); // empty string = auto-detect
+    }
+    else if (ui->rbComma->isChecked())
     {
         return QChar(',');
     }
@@ -115,6 +128,14 @@ QString AsciiReaderSettings::delimiter() const
     else if (ui->rbTab->isChecked())
     {
         return QChar('\t');
+    }
+    else if (ui->rbColon->isChecked())
+    {
+        return QChar(':');
+    }
+    else if (ui->rbSemicolon->isChecked())
+    {
+        return QChar(';');
     }
     else                        // rbOther
     {
@@ -131,11 +152,8 @@ void AsciiReaderSettings::delimiterToggled(bool checked)
 {
     if (!checked) return;
 
-    auto d = delimiter();
-    if (!d.isNull())
-    {
-        emit delimiterChanged(d);
-    }
+    // emit empty string for auto-detect mode so the reader knows to switch
+    emit delimiterChanged(delimiter());
 }
 
 void AsciiReaderSettings::customDelimiterChanged(const QString text)
@@ -157,7 +175,11 @@ void AsciiReaderSettings::saveSettings(QSettings* settings)
 
     // save delimiter
     QString delimiterS;
-    if (ui->rbOtherDelimiter->isChecked())
+    if (ui->rbAuto->isChecked())
+    {
+        delimiterS = "auto";
+    }
+    else if (ui->rbOtherDelimiter->isChecked())
     {
         delimiterS = "other";
     }
@@ -165,6 +187,14 @@ void AsciiReaderSettings::saveSettings(QSettings* settings)
     {
         // Note: \t is not correctly loaded
         delimiterS = "TAB";
+    }
+    else if (ui->rbColon->isChecked())
+    {
+        delimiterS = "COLON";
+    }
+    else if (ui->rbSemicolon->isChecked())
+    {
+        delimiterS = "SEMICOLON";
     }
     else
     {
@@ -221,7 +251,11 @@ void AsciiReaderSettings::loadSettings(QSettings* settings)
     auto delimiterS = settings->value(SG_ASCII_Delimiter, delimiter()).toString();
     auto customDelimiter = settings->value(SG_ASCII_CustomDelimiter, delimiter()).toString();
     if (!customDelimiter.isEmpty()) ui->leDelimiter->setText(customDelimiter);
-    if (delimiterS == ",")
+    if (delimiterS == "auto")
+    {
+        ui->rbAuto->setChecked(true);
+    }
+    else if (delimiterS == ",")
     {
         ui->rbComma->setChecked(true);
     }
@@ -232,6 +266,14 @@ void AsciiReaderSettings::loadSettings(QSettings* settings)
     else if (delimiterS == "TAB")
     {
         ui->rbTab->setChecked(true);
+    }
+    else if (delimiterS == "COLON")
+    {
+        ui->rbColon->setChecked(true);
+    }
+    else if (delimiterS == "SEMICOLON")
+    {
+        ui->rbSemicolon->setChecked(true);
     }
     else
     {

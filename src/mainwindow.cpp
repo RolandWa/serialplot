@@ -80,11 +80,12 @@ MainWindow::MainWindow(QWidget *parent) :
     plotMan = new PlotManager(ui->plotArea, &plotMenu, &stream);
 
     ui->tabWidget->insertTab(0, &portControl, "Port");
-    ui->tabWidget->insertTab(1, &dataFormatPanel, "Data Format");
-    ui->tabWidget->insertTab(2, &plotControlPanel, "Plot");
-    ui->tabWidget->insertTab(3, &commandPanel, "Commands");
-    ui->tabWidget->insertTab(4, &recordPanel, "Record");
-    ui->tabWidget->insertTab(5, &textView, "Text View");
+    ui->tabWidget->insertTab(1, &udpControl, "UDP");
+    ui->tabWidget->insertTab(2, &dataFormatPanel, "Data Format");
+    ui->tabWidget->insertTab(3, &plotControlPanel, "Plot");
+    ui->tabWidget->insertTab(4, &commandPanel, "Commands");
+    ui->tabWidget->insertTab(5, &recordPanel, "Record");
+    ui->tabWidget->insertTab(6, &textView, "Text View");
     ui->tabWidget->setCurrentIndex(0);
     auto tbPortControl = portControl.toolBar();
     addToolBar(tbPortControl);
@@ -166,6 +167,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // port control signals
     QObject::connect(&portControl, &PortControl::portToggled,
                      this, &MainWindow::onPortToggled);
+
+    // UDP control signals
+    QObject::connect(&udpControl, &UdpControl::socketToggled,
+                     this, &MainWindow::onUdpToggled);
 
     // plot control signals
     connect(&plotControlPanel, &PlotControlPanel::numOfSamplesChanged,
@@ -266,6 +271,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&dataFormatPanel, &DataFormatPanel::sourceChanged,
             this, &MainWindow::onSourceChanged);
     onSourceChanged(dataFormatPanel.activeSource());
+
+    // Arduino label auto-detection: apply detected channel names to the model
+    connect(&dataFormatPanel, &DataFormatPanel::channelLabelsReceived,
+            stream.infoModel(), &ChannelInfoModel::setNames);
 
     // load default settings
     QSettings settings(PROGRAM_NAME, PROGRAM_NAME);
@@ -375,9 +384,34 @@ void MainWindow::onPortToggled(bool open)
     if (open && isDemoRunning()) enableDemo(false);
     ui->actionDemoMode->setEnabled(!open);
 
-    if (!open)
+    if (open)
+    {
+        // serial port takes priority — switch readers back to serial
+        dataFormatPanel.setDevice(&serialPort);
+    }
+    else
     {
         spsLabel.setText("0sps");
+        // if UDP is still bound, hand readers back to it
+        if (udpControl.isBound())
+            dataFormatPanel.setDevice(udpControl.device());
+    }
+}
+
+void MainWindow::onUdpToggled(bool bound)
+{
+    if (bound)
+    {
+        // close serial port if open, then switch readers to UDP
+        if (serialPort.isOpen()) serialPort.close();
+        dataFormatPanel.setDevice(udpControl.device());
+        ui->actionDemoMode->setEnabled(false);
+    }
+    else
+    {
+        // UDP unbound — fall back to serial port device
+        dataFormatPanel.setDevice(&serialPort);
+        ui->actionDemoMode->setEnabled(!serialPort.isOpen());
     }
 }
 
@@ -532,6 +566,7 @@ void MainWindow::saveAllSettings(QSettings* settings)
 {
     saveMWSettings(settings);
     portControl.saveSettings(settings);
+    udpControl.saveSettings(settings);
     dataFormatPanel.saveSettings(settings);
     stream.saveSettings(settings);
     plotControlPanel.saveSettings(settings);
@@ -546,6 +581,7 @@ void MainWindow::loadAllSettings(QSettings* settings)
 {
     loadMWSettings(settings);
     portControl.loadSettings(settings);
+    udpControl.loadSettings(settings);
     dataFormatPanel.loadSettings(settings);
     stream.loadSettings(settings);
     plotControlPanel.loadSettings(settings);

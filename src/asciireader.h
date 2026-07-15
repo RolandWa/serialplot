@@ -41,6 +41,10 @@ public:
     /// Loads settings from a `QSettings`.
     void loadSettings(QSettings* settings);
 
+signals:
+    /// Emitted when Arduino-style labels are detected in incoming data
+    void labelsReceived(QStringList labels);
+
 private:
     AsciiReaderSettings _settingsWidget;
     unsigned _numChannels;
@@ -52,10 +56,9 @@ private:
     QString filterPrefix; ///< selected ASCII mode filter prefix
 
     bool firstReadAfterEnable = false;
+    QStringList _lastLabels; ///< last emitted Arduino-style channel labels
 
     unsigned readData() override;
-
-private slots:
 
     /**
      * Parses given line and returns sample pack.
@@ -63,6 +66,13 @@ private slots:
      * Returns `nullptr` in case of error.
      */
     SamplePack* parseLine(const QString& line) const;
+
+    /**
+     * Extracts Arduino-style labels from a line (e.g. "temp:23.5,hum:61.2").
+     *
+     * Returns an empty list if no labels are found.
+     */
+    QStringList extractLabels(const QString& line) const;
 };
 
 #endif // ASCIIREADER_H

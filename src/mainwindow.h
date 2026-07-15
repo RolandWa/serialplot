@@ -35,6 +35,7 @@
 #include <qwt_plot_curve.h>
 
 #include "portcontrol.h"
+#include "udpcontrol.h"
 #include "commandpanel.h"
 #include "dataformatpanel.h"
 #include "plotcontrolpanel.h"
@@ -73,6 +74,7 @@ private:
 
     QSerialPort serialPort;
     PortControl portControl;
+    UdpControl udpControl;
 
     unsigned int numOfSamples;
 
@@ -117,6 +119,7 @@ private:
 
 private slots:
     void onPortToggled(bool open);
+    void onUdpToggled(bool bound);
     void onSourceChanged(Source* source);
     void onNumOfSamplesChanged(int value);
 

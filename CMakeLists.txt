@@ -19,7 +19,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(serialplot VERSION 0.12.0 LANGUAGES CXX)
+project(serialplot VERSION 0.12.1 LANGUAGES CXX)
 
 set(PROGRAM_NAME ${CMAKE_PROJECT_NAME} CACHE STRING "Output program name")
 set(PROGRAM_DISPLAY_NAME "SerialPlot" CACHE STRING "Display name (menus etc) of the program")
@@ -89,6 +89,7 @@ qt_add_executable(${PROGRAM_NAME}
   src/framebufferseries.cpp
   src/numberformatbox.cpp
   src/endiannessbox.cpp
+  src/udpcontrol.cpp
   src/abstractreader.cpp
   src/binarystreamreader.cpp
   src/binarystreamreadersettings.cpp

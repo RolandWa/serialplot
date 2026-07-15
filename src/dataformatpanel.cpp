@@ -65,6 +65,9 @@ DataFormatPanel::DataFormatPanel(QSerialPort* port, QWidget *parent) :
             {
                 if (checked) selectReader(&framedReader);
             });
+
+    connect(&asciiReader, &AsciiReader::labelsReceived,
+            this, &DataFormatPanel::onAsciiLabelsReceived);
 }
 
 DataFormatPanel::~DataFormatPanel()
@@ -116,6 +119,8 @@ bool DataFormatPanel::isDemoEnabled() const
 
 void DataFormatPanel::selectReader(AbstractReader* reader)
 {
+    if (reader == currentReader) return;
+
     currentReader->enable(false);
     reader->enable();
 
@@ -132,6 +137,18 @@ void DataFormatPanel::selectReader(AbstractReader* reader)
 
     currentReader = reader;
     emit sourceChanged(currentReader);
+}
+
+void DataFormatPanel::onAsciiLabelsReceived(QStringList labels)
+{
+    emit channelLabelsReceived(labels);
+}
+
+void DataFormatPanel::setDevice(QIODevice* device)
+{
+    bsReader.setDevice(device);
+    asciiReader.setDevice(device);
+    framedReader.setDevice(device);
 }
 
 uint64_t DataFormatPanel::bytesRead()

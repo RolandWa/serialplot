@@ -19,6 +19,7 @@
 
 #include "channelinfomodel.h"
 #include "setting_defines.h"
+#include <QtDebug>
 
 #define NUMOF_COLORS  (32)
 
@@ -428,6 +429,17 @@ void ChannelInfoModel::resetNames()
         infos[ci].name = ChannelInfo(ci).name;
     }
     endResetModel();
+}
+
+void ChannelInfoModel::setNames(QStringList names)
+{
+    for (int i = 0; i < names.size() && i < (int) _numOfChannels; i++)
+    {
+        if (!names[i].isEmpty())
+        {
+            setData(index(i, COLUMN_NAME), names[i], Qt::EditRole);
+        }
+    }
 }
 
 void ChannelInfoModel::resetColors()

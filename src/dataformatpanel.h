@@ -24,6 +24,7 @@
 #include <QWidget>
 #include <QButtonGroup>
 #include <QSerialPort>
+#include <QIODevice>
 #include <QList>
 #include <QSettings>
 #include <QtGlobal>
@@ -45,6 +46,8 @@ class DataFormatPanel : public QWidget
 
 public:
     explicit DataFormatPanel(QSerialPort* port, QWidget* parent = 0);
+    /// Switch all readers to a different I/O device (e.g. UDP socket).
+    void setDevice(QIODevice* device);
     ~DataFormatPanel();
 
     /// Returns currently selected number of channels
@@ -65,6 +68,8 @@ public slots:
 signals:
     /// Active (selected) reader has changed.
     void sourceChanged(Source* source);
+    /// Emitted when AsciiReader detects Arduino-style channel labels.
+    void channelLabelsReceived(QStringList labels);
 
 private:
     Ui::DataFormatPanel *ui;
@@ -87,6 +92,9 @@ private:
     AbstractReader* readerBeforeDemo;
 
     bool isDemoEnabled() const;
+
+private slots:
+    void onAsciiLabelsReceived(QStringList labels);
 };
 
 #endif // DATAFORMATPANEL_H

@@ -136,6 +136,9 @@ unsigned AsciiReader::readData()
                 break;
         }
 
+        // detect Arduino-style labels to apply after channel count is finalized
+        QStringList labels = extractLabels(line);
+
         const SamplePack* samples = parseLine(line);
         if (samples != nullptr) {
             // update number of channels if in auto mode
@@ -151,6 +154,12 @@ unsigned AsciiReader::readData()
 
             Q_ASSERT(samples->numChannels() == _numChannels);
 
+            // emit labels after channels exist so setNames finds the right count
+            if (!labels.isEmpty() && labels != _lastLabels) {
+                _lastLabels = labels;
+                emit labelsReceived(labels);
+            }
+
             // commit data
             feedOut(*samples);
             delete samples;
@@ -160,9 +169,25 @@ unsigned AsciiReader::readData()
     return numBytesRead;
 }
 
+static QString detectDelimiter(const QString& line)
+{
+    // Try each candidate in priority order; pick the first one that actually
+    // splits the line into more than one field.
+    // Colon comes last because it appears inside Arduino "label:value" pairs
+    // and must not be mistaken for the field separator.
+    static const QStringList candidates = {"\t", ";", ",", " ", ":"};
+    for (const QString& sep : candidates)
+    {
+        if (line.split(sep, Qt::SkipEmptyParts).size() > 1)
+            return sep;
+    }
+    return ",";
+}
+
 SamplePack* AsciiReader::parseLine(const QString& line) const
 {
-    auto separatedValues = line.split(delimiter, Qt::SkipEmptyParts);
+    QString sep = delimiter.isEmpty() ? detectDelimiter(line) : delimiter;
+    auto separatedValues = line.split(sep, Qt::SkipEmptyParts);
     unsigned numComingChannels = separatedValues.length();
 
     // check number of channels (skipped if auto num channels is enabled)
@@ -203,6 +228,28 @@ SamplePack* AsciiReader::parseLine(const QString& line) const
     }
 
     return samples;
+}
+
+QStringList AsciiReader::extractLabels(const QString& line) const
+{
+    QString sep = delimiter.isEmpty() ? detectDelimiter(line) : delimiter;
+    auto fields = line.split(sep, Qt::SkipEmptyParts);
+    QStringList labels;
+    bool hasAnyLabel = false;
+    for (const QString& field : fields)
+    {
+        int colonPos = field.indexOf(':');
+        if (colonPos > 0)
+        {
+            labels.append(field.left(colonPos).trimmed());
+            hasAnyLabel = true;
+        }
+        else
+        {
+            labels.append(QString());
+        }
+    }
+    return hasAnyLabel ? labels : QStringList();
 }
 
 void AsciiReader::saveSettings(QSettings* settings)

@@ -74,6 +74,8 @@ public slots:
     void resetInfos();
     /// reset all channel names
     void resetNames();
+    /// set channel names from a list (Arduino label import)
+    void setNames(QStringList names);
     /// reset all channel colors
     void resetColors();
     /// reset all channel gain values and disables gains

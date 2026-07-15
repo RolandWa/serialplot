@@ -46,6 +46,10 @@ public:
     /// 'disabled'.
     virtual void enable(bool enabled = true);
 
+    /// Swap the underlying I/O device (e.g. switch from serial to UDP).
+    /// The readyRead signal is rewired automatically.
+    void setDevice(QIODevice* device);
+
     /// None of the current readers support X channel at the moment
     bool hasX() const final { return false; };
 
@@ -72,6 +76,7 @@ protected:
     /// Reader should check this variable to determine if reading is
     /// paused in `readData()`
     bool paused;
+    bool _enabled = false;
 
     /**
      * Called when `readyRead` is signaled by the device. This is
