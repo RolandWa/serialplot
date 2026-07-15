@@ -4,6 +4,7 @@
 
 param(
     [switch]$Install,
+    [switch]$Package,
     [string]$BuildDir = "build-windows"
 )
 
@@ -44,6 +45,10 @@ $packages = @(
     "mingw-w64-ucrt-x86_64-make",
     "mingw-w64-ucrt-x86_64-qwt-qt6"
 )
+
+if ($Package) {
+    $packages += "mingw-w64-ucrt-x86_64-nsis"
+}
 
 & $PACMAN -S --needed --noconfirm @packages
 if ($LASTEXITCODE -ne 0) { Write-Error "pacman failed" }
@@ -163,3 +168,29 @@ cmake --install "__BUILD__" --prefix "__INSTALL__"
 
 Write-Host "`n=== Build complete ===" -ForegroundColor Green
 Write-Host "Executable: $buildDir\serialplot.exe"
+
+# ---------------------------------------------------------------------------
+# 4. Optional package (NSIS Windows installer via CPack)
+# ---------------------------------------------------------------------------
+if ($Package) {
+    Write-Host "`n=== Building Windows installer (CPack/NSIS) ===" -ForegroundColor Cyan
+
+    $tmpPack = "$env:TEMP\serialplot_pack.sh"
+    $packScript = @'
+#!/usr/bin/env bash
+set -e
+export PATH="/ucrt64/bin:$PATH"
+cd "__BUILD__"
+cpack -G NSIS
+'@
+    $packScript = $packScript -replace '__BUILD__', $buildUnix
+    [System.IO.File]::WriteAllText($tmpPack, $packScript, [System.Text.Encoding]::UTF8)
+
+    & $BASH --login $tmpPack
+    if ($LASTEXITCODE -ne 0) { Write-Error "CPack failed" }
+
+    $installer = Get-ChildItem $buildDir -Filter "serialplot-*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($installer) {
+        Write-Host "`nInstaller: $($installer.FullName)" -ForegroundColor Green
+    }
+}

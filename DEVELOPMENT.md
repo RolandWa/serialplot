@@ -119,6 +119,74 @@ serialplot automatically detects `key:value` pairs and uses the keys as channel 
 
 ---
 
+## Building a Windows installer
+
+Requires MSYS2 + NSIS (installed automatically by the script).
+
+```powershell
+.\build_windows.ps1 -Install -Package
+```
+
+Output: `build-windows\serialplot-<version>-win64.exe`
+
+The `-Package` flag installs `mingw-w64-ucrt-x86_64-nsis` via pacman and runs `cpack -G NSIS`.
+
+---
+
+## Publishing a GitHub release
+
+Requires the [GitHub CLI](https://cli.github.com/) (`gh`). Install via:
+
+```powershell
+winget install --id GitHub.cli
+gh auth login
+```
+
+### Tag the source commit
+
+```powershell
+git tag -a "serialplot-<version>" -m "serialplot <version>"
+git push origin "serialplot-<version>"
+```
+
+### Create the release and upload the installer
+
+```powershell
+gh release create "serialplot-<version>" "build-windows\serialplot-<version>-win64.exe" `
+  --repo "RolandWa/serialplot" `
+  --title "v<version> — <short description>" `
+  --notes "Release notes here"
+```
+
+Releases are published at: [github.com/RolandWa/serialplot/releases](https://github.com/RolandWa/serialplot/releases)
+
+---
+
+## Ubuntu build (WSL)
+
+Use WSL with Ubuntu. The original project's packaging scripts work as-is.
+
+```bash
+# Inside WSL Ubuntu
+sudo apt install cmake ninja-build qt6-base-dev qt6-serialport-dev \
+     qt6-svg-dev libqwt-qt6-dev
+
+cmake -S . -B build-ubuntu -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_QWT=false
+cmake --build build-ubuntu --parallel
+cd build-ubuntu && cpack -G DEB
+```
+
+Output: `build-ubuntu/serialplot-<version>-Linux.deb`
+
+Upload to the same release:
+
+```bash
+gh release upload "serialplot-<version>" build-ubuntu/serialplot-<version>-Linux.deb \
+  --repo RolandWa/serialplot
+```
+
+---
+
 ## Bugs fixed in this branch (feature/port-to-qt6)
 
 | Bug | Root cause | Fix |
