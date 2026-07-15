@@ -162,28 +162,97 @@ Releases are published at: [github.com/RolandWa/serialplot/releases](https://git
 
 ---
 
-## Ubuntu build (WSL)
+## Ubuntu / Debian build (WSL)
 
-Use WSL with Ubuntu. The original project's packaging scripts work as-is.
+Ubuntu 26.04 (and 22.04+) does not ship `libqwt-qt6-dev`, so Qwt 6.3 is built from source via CMake's `ExternalProject`. Use the provided script — do **not** use the manual cmake commands in the original README.
 
 ```bash
-# Inside WSL Ubuntu
-sudo apt install cmake ninja-build qt6-base-dev qt6-serialport-dev \
-     qt6-svg-dev libqwt-qt6-dev
-
-cmake -S . -B build-ubuntu -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_QWT=false
-cmake --build build-ubuntu --parallel
-cd build-ubuntu && cpack -G DEB
+# Inside WSL Ubuntu — run from the repo root (Windows path via /mnt/c/...)
+./build_ubuntu.sh --package
 ```
 
-Output: `build-ubuntu/serialplot-<version>-Linux.deb`
+The script:
 
-Upload to the same release:
+1. Installs Qt 6 build dependencies via `apt`
+2. Builds Qwt 6.3 first (`cmake --build --target QWT`)
+3. Builds serialplot
+4. Runs `cpack -G DEB` → `serialplot_0.12.1_amd64.deb`
+5. Copies the `.deb` back to the repo root (Windows-accessible)
+
+Build directory is `$HOME/serialplot-build-ubuntu` (WSL native fs, survives WSL restarts).
+
+**Note:** Build dir `/tmp/serialplot-build-ubuntu` is lost on WSL restart — always use `$HOME/`.
+
+Upload to the GitHub release:
 
 ```bash
-gh release upload "serialplot-<version>" build-ubuntu/serialplot-<version>-Linux.deb \
+gh release upload "serialplot-0.12.1" serialplot_0.12.1_amd64.deb \
   --repo RolandWa/serialplot
 ```
+
+Install the package:
+
+```bash
+sudo dpkg -i serialplot_0.12.1_amd64.deb
+sudo apt-get install -f   # fix any missing dependencies
+```
+
+---
+
+## TODO — future work
+
+### #1 — Repeat interval for GUI Commands
+
+**Reference:** [hyOzd/serialplot#1](https://github.com/hyOzd/serialplot/issues/1)
+
+Add a repeat interval control to the end of each command row in the Commands panel so that a command can be sent automatically at a configurable rate.
+
+**Proposed UI** (right side of each `CommandWidget` row):
+
+| Control | Type | Details |
+| --- | --- | --- |
+| Repeat toggle | `QCheckBox` or `QToolButton` | Enables / disables periodic sending |
+| Interval value | `QSpinBox` (sbInterval) | Range 1–99999, default 1000 |
+| Unit selector | `QComboBox` (cbUnit) | Items: `ms`, `s` |
+
+**Implementation sketch:**
+
+```cpp
+// commandwidget.h
+QTimer _repeatTimer;
+int intervalMs() const;      // converts spinbox + unit to milliseconds
+private slots:
+    void onRepeatToggled(bool enabled);
+    void onIntervalChanged();
+```
+
+```cpp
+// commandwidget.cpp
+connect(&_repeatTimer, &QTimer::timeout, this, &CommandWidget::onSendClicked);
+
+void CommandWidget::onRepeatToggled(bool enabled) {
+    if (enabled)
+        _repeatTimer.start(intervalMs());
+    else
+        _repeatTimer.stop();
+}
+
+int CommandWidget::intervalMs() const {
+    int v = ui->sbInterval->value();
+    return ui->cbUnit->currentText() == "s" ? v * 1000 : v;
+}
+```
+
+**Files to change:**
+
+| File | Change |
+| --- | --- |
+| `src/commandwidget.h` | Add `QTimer`, `intervalMs()`, repeat slot declarations |
+| `src/commandwidget.cpp` | Implement repeat logic; stop timer in destructor |
+| `src/commandwidget.ui` | Add Repeat checkbox, sbInterval spinbox, cbUnit combobox |
+| `src/commandpanel.cpp` | Stop all repeat timers when the port / UDP socket is closed |
+
+Settings: save/load repeat state, interval value, and unit alongside existing command settings in `CommandWidget::saveSettings` / `loadSettings`.
 
 ---
 
